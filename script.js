@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="trip-stats">
                         <div class="stat-item">
-                            <div class="stat-value">${trip.distance < 1 ? '< 1' : trip.distance.toFixed(1)} <span style="font-size:12px;color:#75819C">km</span></div>
+                            <div class="stat-value">${trip.distance < 1 ? '< 1' : trip.distance.toFixed(1)} <span class="unit" style="color:#75819C">km</span></div>
                             <div class="stat-label">导航里程</div>
                         </div>
                         <div class="stat-item">
@@ -186,11 +186,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="stat-label">驾驶时长</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">${trip.avgSpeed} <span style="font-size:12px;color:#75819C">km/h</span></div>
+                            <div class="stat-value">${trip.avgSpeed} <span class="unit" style="color:#75819C">km/h</span></div>
                             <div class="stat-label">平均速度</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">${trip.maxSpeed} <span style="font-size:12px;color:#75819C">km/h</span></div>
+                            <div class="stat-value">${trip.maxSpeed} <span class="unit" style="color:#75819C">km/h</span></div>
                             <div class="stat-label">最快速度</div>
                         </div>
                     </div>

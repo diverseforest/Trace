@@ -80,7 +80,7 @@ header h1 {
 
 /* 行程列表样式 */
 #trip-list {
-    padding: 0 15px;
+    padding: 0 8px;
 }
 
 .month-group {
@@ -136,8 +136,8 @@ header h1 {
 
 .trip-time {
     color: #99A3B9;
-    font-size: 14px;
-    margin-top: 2px; /* 微调时间位置 */
+    font-size: 13px;
+    margin-top: 3px; /* 微调时间位置 */
 }
 
 .trip-action {
@@ -162,7 +162,7 @@ header h1 {
     left: 30px;
     top: 15px;
     bottom: 30px;
-    width: 2px;
+    width: 1.5px;
     background-color: #3C7CAC;
 }
 
@@ -221,6 +221,11 @@ header h1 {
     font-size: 14px;
     font-weight: bold;
     color: white;
+}
+
+.stat-value .unit {
+    font-size: 10px;  /* 单位的字号 */
+    font-weight: normal;  /* 取消粗体 */
 }
 
 .stat-label {
