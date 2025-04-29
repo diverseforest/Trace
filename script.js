@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.classList.toggle('collapsed');
         });
         // 初始化为折叠状态
-        collapsibleHeader.classList.add('collapsed');
+        //collapsibleHeader.classList.add('collapsed');
     }
 
     // Load trips from localStorage or initialize empty array
@@ -41,6 +41,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial render
     renderTrips();
+
+    // 添加驾驶时长自动计算功能
+    const distanceInput = document.getElementById('distance');
+    const avgSpeedInput = document.getElementById('avg-speed');
+    const durationInput = document.getElementById('duration');
+    
+    if (distanceInput && avgSpeedInput && durationInput) {
+        // 当里程或平均速度改变时，自动计算时长
+        distanceInput.addEventListener('input', calculateDuration);
+        avgSpeedInput.addEventListener('input', calculateDuration);
+        
+        // 添加自动计算按钮
+        const durationLabel = durationInput.previousElementSibling;
+        if (durationLabel) {
+            const calcButton = document.createElement('button');
+            calcButton.type = 'button';
+            calcButton.id = 'calculate-duration-btn';
+            calcButton.textContent = '自动计算';
+            calcButton.style.marginLeft = '10px';
+            calcButton.style.fontSize = '0.8em';
+            calcButton.style.padding = '2px 8px';
+            durationLabel.appendChild(calcButton);
+            
+            calcButton.addEventListener('click', calculateDuration);
+        }
+        
+        // 优化时长输入，允许直接输入HHMMSS格式
+        durationInput.addEventListener('input', function(e) {
+            const value = e.target.value.replace(/[^0-9]/g, '');
+            if (value.length <= 6) {
+                // 用户正在输入数字
+                let formatted = value;
+                if (value.length > 2) {
+                    formatted = value.slice(0, 2) + ':' + value.slice(2);
+                }
+                if (value.length > 4) {
+                    formatted = formatted.slice(0, 5) + ':' + value.slice(4);
+                }
+                e.target.value = formatted;
+            }
+        });
+    }
+    
+    function calculateDuration() {
+        const distance = parseFloat(distanceInput.value);
+        const avgSpeed = parseFloat(avgSpeedInput.value);
+        
+        if (distance && avgSpeed && avgSpeed > 0) {
+            // 计算总秒数 (距离/速度*3600)
+            const totalSeconds = Math.round((distance / avgSpeed) * 3600);
+            
+            // 转换为时分秒
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            // 更新输入框，格式为 HH:MM:SS
+            durationInput.value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+    }
 
     // 表单提交处理
     if (form) {
