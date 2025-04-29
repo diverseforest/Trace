@@ -42,101 +42,192 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial render
     renderTrips();
 
-    // 添加驾驶时长自动计算功能
+    // 获取表单元素
     const distanceInput = document.getElementById('distance');
     const avgSpeedInput = document.getElementById('avg-speed');
-    const durationInput = document.getElementById('duration');
-    
-    if (distanceInput && avgSpeedInput && durationInput) {
-        // 当里程或平均速度改变时，自动计算时长
-        distanceInput.addEventListener('input', calculateDuration);
-        avgSpeedInput.addEventListener('input', calculateDuration);
-        
-        // 添加自动计算按钮
-        const durationLabel = durationInput.previousElementSibling;
-        if (durationLabel) {
-            const calcButton = document.createElement('button');
-            calcButton.type = 'button';
-            calcButton.id = 'calculate-duration-btn';
-            calcButton.textContent = '自动计算';
-            calcButton.style.marginLeft = '10px';
-            calcButton.style.fontSize = '0.8em';
-            calcButton.style.padding = '2px 8px';
-            durationLabel.appendChild(calcButton);
-            
-            calcButton.addEventListener('click', calculateDuration);
-        }
-        
-        // 优化时长输入，允许直接输入HHMMSS格式
-        durationInput.addEventListener('input', function(e) {
-            const value = e.target.value.replace(/[^0-9]/g, '');
-            if (value.length <= 6) {
-                // 用户正在输入数字
-                let formatted = value;
-                if (value.length > 2) {
-                    formatted = value.slice(0, 2) + ':' + value.slice(2);
-                }
-                if (value.length > 4) {
-                    formatted = formatted.slice(0, 5) + ':' + value.slice(4);
-                }
-                e.target.value = formatted;
-            }
+    const durationHoursInput = document.getElementById('duration-hours');
+    const durationMinutesInput = document.getElementById('duration-minutes');
+    const durationSecondsInput = document.getElementById('duration-seconds');
+    const durationInput = document.getElementById('duration'); // 隐藏的字段，用于存储 HH:MM:SS 格式
+
+    // 添加事件监听器，用于在输入变化时更新计算
+    if (distanceInput && avgSpeedInput && durationInput && durationHoursInput && durationMinutesInput && durationSecondsInput) {
+        // 当里程输入变化时，立即尝试更新计算
+        distanceInput.addEventListener('input', updateCalculations);
+
+        // 当平均速度输入完成时 (失去焦点或按回车)，才尝试更新计算
+        // 使用 'change' 事件替代 'input' 事件，解决输入被打断的问题
+        avgSpeedInput.addEventListener('change', updateCalculations);
+
+        // 当驾驶时长的时、分、秒任一输入框变化时，立即更新隐藏字段并尝试更新计算
+        [durationHoursInput, durationMinutesInput, durationSecondsInput].forEach(input => {
+            input.addEventListener('input', function() {
+                // 先根据时分秒更新隐藏的 HH:MM:SS 字段
+                updateDurationField();
+                // 然后根据新的时长（和里程）重新计算平均速度
+                updateCalculations();
+            });
         });
+    } // <-- 添加这个闭合括号
+
+    // 更新驾驶时长隐藏字段 (HH:MM:SS 格式)
+    function updateDurationField() {
+        // 获取时、分、秒的值，如果输入框为空，则视为 '0'
+        // padStart(2, '0') 确保始终是两位数，例如 '5' -> '05'
+        const hours = (durationHoursInput.value || '0').padStart(2, '0');
+        const minutes = (durationMinutesInput.value || '0').padStart(2, '0');
+        const seconds = (durationSecondsInput.value || '0').padStart(2, '0');
+
+        // 将格式化后的时分秒组合成 HH:MM:SS 格式，并更新到隐藏的 input#duration 中
+        durationInput.value = `${hours}:${minutes}:${seconds}`;
     }
-    
-    function calculateDuration() {
+
+    // 根据输入情况更新计算 (核心逻辑)
+    function updateCalculations() {
+        // 获取当前输入的导航里程和平均速度，并转换为数字
         const distance = parseFloat(distanceInput.value);
         const avgSpeed = parseFloat(avgSpeedInput.value);
-        
-        if (distance && avgSpeed && avgSpeed > 0) {
-            // 计算总秒数 (距离/速度*3600)
-            const totalSeconds = Math.round((distance / avgSpeed) * 3600);
-            
-            // 转换为时分秒
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-            
-            // 更新输入框，格式为 HH:MM:SS
-            durationInput.value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+        // 检查是否有驾驶时长输入 (只要时、分、秒任一输入框有值就算作有输入)
+        const hasTimeInput = durationHoursInput.value || durationMinutesInput.value || durationSecondsInput.value;
+
+        // **必要条件检查**: 如果没有有效的导航里程 (非数字或小于等于0)，则无法进行任何计算，直接退出函数
+        if (!distance || distance <= 0) {
+            return;
         }
+
+        // **计算优先级 1**: 如果用户输入了驾驶时长，则优先根据时长和里程计算平均速度
+        if (hasTimeInput) {
+            // 确保隐藏的 duration 字段的值与页面上的时分秒输入框同步
+            updateDurationField();
+
+            // 从隐藏字段 'HH:MM:SS' 中解析出时、分、秒的数值
+            const durationParts = durationInput.value.split(':');
+            const hours = parseInt(durationParts[0] || '0', 10); // 解析小时，如果为空则为0
+            const minutes = parseInt(durationParts[1] || '0', 10); // 解析分钟，如果为空则为0
+            const seconds = parseInt(durationParts[2] || '0', 10); // 解析秒钟，如果为空则为0
+            // 计算总秒数
+            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+            // 只有当总时长大于0秒时，计算才有意义
+            if (totalSeconds > 0) {
+                // 将总秒数转换为小时数，用于计算速度 (km/h)
+                const timeInHours = totalSeconds / 3600;
+                // 计算平均速度 = 距离(km) / 时间(小时)，并四舍五入到整数
+                const calculatedSpeed = Math.round(distance / timeInHours);
+                // 更新平均速度输入框的值
+                avgSpeedInput.value = calculatedSpeed;
+            }
+            // 如果总时长为0或无效，可以选择清除速度或保持不变 (当前选择保持不变)
+        }
+        // **计算优先级 2**: 如果用户没有输入时长，但输入了有效的平均速度 (大于0)
+        else if (avgSpeed && avgSpeed > 0) {
+            // 根据距离和速度计算总秒数 = (距离 / 速度) * 3600，并四舍五入
+            const totalSeconds = Math.round((distance / avgSpeed) * 3600);
+
+            // 将计算出的总秒数转换回时、分、秒
+            const hours = Math.floor(totalSeconds / 3600); // 计算小时部分
+            const minutes = Math.floor((totalSeconds % 3600) / 60); // 计算分钟部分
+            const seconds = totalSeconds % 60; // 计算秒钟部分
+
+            // 更新页面上显示的时、分、秒输入框
+            // 因为这个计算只在 avgSpeed 的 'change' 事件 (输入完成时) 触发，
+            // 所以不会覆盖用户正在输入的内容，是安全的。
+            durationHoursInput.value = hours;
+            durationMinutesInput.value = minutes;
+            durationSecondsInput.value = seconds;
+
+            // 计算完成后，也要同步更新隐藏的 duration 字段
+            updateDurationField();
+        }
+        // **其他情况**: 如果既没有输入时长，也没有输入有效的平均速度，则不进行计算。
+        // 可以根据需要选择是否在此处清空对方字段，例如：
+        // else {
+        //     avgSpeedInput.value = ''; // 清空速度
+        //     durationHoursInput.value = ''; // 清空小时
+        //     durationMinutesInput.value = ''; // 清空分钟
+        //     durationSecondsInput.value = ''; // 清空秒钟
+        //     updateDurationField(); // 更新隐藏字段为空
+        // }
     }
 
     // 表单提交处理
     if (form) {
         form.addEventListener('submit', (event) => {
+            // 阻止表单默认的提交行为 (页面刷新)
             event.preventDefault();
 
+            // 在提交前，最后进行一次计算和验证
+            // 检查必填项: 获取最新的值
+            const distance = parseFloat(distanceInput.value);
+            // 检查隐藏字段的值是否有效 (不为空且不为 "00:00:00")
+            const hasDuration = durationInput.value && durationInput.value !== '00:00:00';
+            // 获取最新的平均速度值
+            const avgSpeed = parseFloat(avgSpeedInput.value);
+
+            // **验证逻辑**:
+            // 1. 导航里程必须输入且大于0
+            if (!distance || distance <= 0) {
+                alert('请输入有效的导航里程 (必须大于0)');
+                return; // 阻止提交
+            }
+
+            // 2. 平均速度和驾驶时长至少要有一个有效输入
+            //   - 平均速度有效: avgSpeed 是数字且大于0
+            //   - 驾驶时长有效: hasDuration 为 true
+            if (!(avgSpeed && avgSpeed > 0) && !hasDuration) {
+                alert('请至少输入有效的平均速度或驾驶时长');
+                return; // 阻止提交
+            }
+
+            // **确保数据一致性**: 在验证通过后，再次运行计算逻辑，
+            // 确保即使用户没有手动触发 change 事件 (例如直接点击提交)，
+            // 也能根据当前输入计算出缺失的值。
+            updateCalculations();
+
+            // 获取其他表单字段的值
             const startTime = document.getElementById('start-time').value;
+            const startAddress = document.getElementById('start-location-address').value;
+            const endPlaceName = document.getElementById('end-location-name').value;
+            const maxSpeed = parseInt(document.getElementById('max-speed').value, 10); // 获取最快速度
+
+            // 创建新的行程对象
             const newTrip = {
                 startTime: startTime,
-                startAddress: document.getElementById('start-location-address').value,
-                endPlaceName: document.getElementById('end-location-name').value,
-                distance: parseFloat(document.getElementById('distance').value),
-                duration: document.getElementById('duration').value,
-                avgSpeed: parseInt(document.getElementById('avg-speed').value, 10),
-                maxSpeed: parseInt(document.getElementById('max-speed').value, 10),
-                id: Date.now()
+                startAddress: startAddress,
+                endPlaceName: endPlaceName,
+                distance: parseFloat(distanceInput.value), // 确保使用最新的值
+                duration: durationInput.value, // 使用隐藏字段的 HH:MM:SS 值
+                avgSpeed: parseInt(avgSpeedInput.value, 10), // 确保使用最新的计算结果
+                maxSpeed: maxSpeed || 0, // 如果没填最快速度，给个默认值0
+                id: Date.now() // 使用时间戳作为唯一ID
             };
 
+            // 将新行程添加到行程列表的开头
             trips.unshift(newTrip);
+            // 将更新后的行程列表保存到 localStorage
             localStorage.setItem('trips', JSON.stringify(trips));
+            // 重新渲染行程列表以显示新添加的记录
             renderTrips();
+            // 清空表单，方便下次输入
             form.reset();
+            // 清空隐藏的 duration 字段的值
+            durationInput.value = '';
 
-            // 提交后折叠表单
+            // 提交成功后，如果折叠面板存在，则将其折叠起来
             if (collapsibleHeader) {
                 collapsibleHeader.classList.add('collapsed');
             }
-            
-            // 提交后切换到出行轨迹标签
+
+            // 提交成功后，自动切换回“出行轨迹”标签页
             const tripsTab = document.querySelector('.tabs span[data-target="trips-section"]');
             if (tripsTab) {
-                tripsTab.click();
+                tripsTab.click(); // 模拟点击“出行轨迹”标签
             }
         });
     }
 
+    // 渲染行程列表的函数
     function renderTrips() {
         tripListContainer.innerHTML = '';
 

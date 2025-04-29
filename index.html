@@ -10,7 +10,7 @@
 <body>
 
     <header>
-        <span>&lt;</span> <h1>我的足迹 世界</h1>
+        <span>&lt;</span> <h1>我的足迹世界</h1>
         <span>...</span> </header>
 
     <!-- 在HTML文件中添加标签和内容区域 -->
@@ -52,10 +52,7 @@
                 <label for="distance">导航里程 (km):</label>
                 <input type="number" id="distance" step="0.1" min="0" placeholder="例如：6.6" required>
             </div>
-            <div class="form-group">
-                <label for="avg-speed">平均速度 (km/h):</label>
-                <input type="number" id="avg-speed" min="0" placeholder="例如：66" required>
-            </div>
+            <!-- 驾驶时长提前到平均速度前面 -->
             <div class="form-group">
                 <label for="duration">驾驶时长:</label>
                 <div class="duration-container">
@@ -66,6 +63,10 @@
                     <input type="number" id="duration-seconds" min="0" max="59" placeholder="秒" class="duration-input">
                 </div>
                 <input type="hidden" id="duration" required>
+            </div>
+            <div class="form-group">
+                <label for="avg-speed">平均速度 (km/h):</label>
+                <input type="number" id="avg-speed" min="0" placeholder="例如：66" required>
             </div>
             <div class="form-group">
                 <label for="max-speed">最快速度 (km/h):</label>
