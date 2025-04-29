@@ -52,23 +52,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 添加事件监听器，用于在输入变化时更新计算
     if (distanceInput && avgSpeedInput && durationInput && durationHoursInput && durationMinutesInput && durationSecondsInput) {
-        // 当里程输入变化时，立即尝试更新计算
-        distanceInput.addEventListener('input', updateCalculations);
+        // 当里程输入变化时，根据当前情况更新计算
+        distanceInput.addEventListener('input', function() {
+            // 获取当前输入值
+            const distance = parseFloat(this.value);
+            const avgSpeed = parseFloat(avgSpeedInput.value);
+            const hasTimeInput = durationHoursInput.value || durationMinutesInput.value || durationSecondsInput.value;
+            
+            // 如果里程有效且有平均速度，则计算时长
+            if (distance > 0 && avgSpeed > 0) {
+                calculateDuration(distance, avgSpeed);
+            }
+            // 如果里程有效且有时长，则计算平均速度
+            else if (distance > 0 && hasTimeInput) {
+                updateDurationField();
+                calculateSpeed(distance);
+            }
+        });
 
-        // 当平均速度输入完成时 (失去焦点或按回车)，才尝试更新计算
-        // 使用 'change' 事件替代 'input' 事件，解决输入被打断的问题
-        avgSpeedInput.addEventListener('change', updateCalculations);
+        // 当平均速度输入变化时，计算驾驶时长
+        // 使用 'input' 事件实现实时计算
+        avgSpeedInput.addEventListener('input', function() {
+            const distance = parseFloat(distanceInput.value);
+            const avgSpeed = parseFloat(this.value);
+            
+            // 只有当里程和速度都有效时才计算时长
+            if (distance > 0 && avgSpeed > 0) {
+                calculateDuration(distance, avgSpeed);
+            }
+        });
 
-        // 当驾驶时长的时、分、秒任一输入框变化时，立即更新隐藏字段并尝试更新计算
+        // 当驾驶时长的时、分、秒任一输入框变化时，计算平均速度
         [durationHoursInput, durationMinutesInput, durationSecondsInput].forEach(input => {
             input.addEventListener('input', function() {
                 // 先根据时分秒更新隐藏的 HH:MM:SS 字段
                 updateDurationField();
-                // 然后根据新的时长（和里程）重新计算平均速度
-                updateCalculations();
+                
+                // 获取里程
+                const distance = parseFloat(distanceInput.value);
+                
+                // 如果里程有效，则计算平均速度
+                if (distance > 0) {
+                    calculateSpeed(distance);
+                }
             });
         });
-    } // <-- 添加这个闭合括号
+    }
 
     // 更新驾驶时长隐藏字段 (HH:MM:SS 格式)
     function updateDurationField() {
@@ -82,73 +111,45 @@ document.addEventListener('DOMContentLoaded', () => {
         durationInput.value = `${hours}:${minutes}:${seconds}`;
     }
 
-    // 根据输入情况更新计算 (核心逻辑)
-    function updateCalculations() {
-        // 获取当前输入的导航里程和平均速度，并转换为数字
-        const distance = parseFloat(distanceInput.value);
-        const avgSpeed = parseFloat(avgSpeedInput.value);
+    // 根据里程和平均速度计算驾驶时长
+    function calculateDuration(distance, avgSpeed) {
+        // 计算总秒数 = (距离 / 速度) * 3600，并四舍五入
+        const totalSeconds = Math.round((distance / avgSpeed) * 3600);
 
-        // 检查是否有驾驶时长输入 (只要时、分、秒任一输入框有值就算作有输入)
-        const hasTimeInput = durationHoursInput.value || durationMinutesInput.value || durationSecondsInput.value;
+        // 将计算出的总秒数转换回时、分、秒
+        const hours = Math.floor(totalSeconds / 3600); // 计算小时部分
+        const minutes = Math.floor((totalSeconds % 3600) / 60); // 计算分钟部分
+        const seconds = totalSeconds % 60; // 计算秒钟部分
 
-        // **必要条件检查**: 如果没有有效的导航里程 (非数字或小于等于0)，则无法进行任何计算，直接退出函数
-        if (!distance || distance <= 0) {
-            return;
+        // 更新页面上显示的时、分、秒输入框
+        durationHoursInput.value = hours;
+        durationMinutesInput.value = minutes;
+        durationSecondsInput.value = seconds;
+
+        // 计算完成后，也要同步更新隐藏的 duration 字段
+        updateDurationField();
+    }
+
+    // 根据里程和时长计算平均速度
+    function calculateSpeed(distance) {
+        // 从隐藏字段 'HH:MM:SS' 中解析出时、分、秒的数值
+        const durationParts = durationInput.value.split(':');
+        const hours = parseInt(durationParts[0] || '0', 10); // 解析小时，如果为空则为0
+        const minutes = parseInt(durationParts[1] || '0', 10); // 解析分钟，如果为空则为0
+        const seconds = parseInt(durationParts[2] || '0', 10); // 解析秒钟，如果为空则为0
+        
+        // 计算总秒数
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+        // 只有当总时长大于0秒时，计算才有意义
+        if (totalSeconds > 0) {
+            // 将总秒数转换为小时数，用于计算速度 (km/h)
+            const timeInHours = totalSeconds / 3600;
+            // 计算平均速度 = 距离(km) / 时间(小时)，并四舍五入到整数
+            const calculatedSpeed = Math.round(distance / timeInHours);
+            // 更新平均速度输入框的值
+            avgSpeedInput.value = calculatedSpeed;
         }
-
-        // **计算优先级 1**: 如果用户输入了驾驶时长，则优先根据时长和里程计算平均速度
-        if (hasTimeInput) {
-            // 确保隐藏的 duration 字段的值与页面上的时分秒输入框同步
-            updateDurationField();
-
-            // 从隐藏字段 'HH:MM:SS' 中解析出时、分、秒的数值
-            const durationParts = durationInput.value.split(':');
-            const hours = parseInt(durationParts[0] || '0', 10); // 解析小时，如果为空则为0
-            const minutes = parseInt(durationParts[1] || '0', 10); // 解析分钟，如果为空则为0
-            const seconds = parseInt(durationParts[2] || '0', 10); // 解析秒钟，如果为空则为0
-            // 计算总秒数
-            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-
-            // 只有当总时长大于0秒时，计算才有意义
-            if (totalSeconds > 0) {
-                // 将总秒数转换为小时数，用于计算速度 (km/h)
-                const timeInHours = totalSeconds / 3600;
-                // 计算平均速度 = 距离(km) / 时间(小时)，并四舍五入到整数
-                const calculatedSpeed = Math.round(distance / timeInHours);
-                // 更新平均速度输入框的值
-                avgSpeedInput.value = calculatedSpeed;
-            }
-            // 如果总时长为0或无效，可以选择清除速度或保持不变 (当前选择保持不变)
-        }
-        // **计算优先级 2**: 如果用户没有输入时长，但输入了有效的平均速度 (大于0)
-        else if (avgSpeed && avgSpeed > 0) {
-            // 根据距离和速度计算总秒数 = (距离 / 速度) * 3600，并四舍五入
-            const totalSeconds = Math.round((distance / avgSpeed) * 3600);
-
-            // 将计算出的总秒数转换回时、分、秒
-            const hours = Math.floor(totalSeconds / 3600); // 计算小时部分
-            const minutes = Math.floor((totalSeconds % 3600) / 60); // 计算分钟部分
-            const seconds = totalSeconds % 60; // 计算秒钟部分
-
-            // 更新页面上显示的时、分、秒输入框
-            // 因为这个计算只在 avgSpeed 的 'change' 事件 (输入完成时) 触发，
-            // 所以不会覆盖用户正在输入的内容，是安全的。
-            durationHoursInput.value = hours;
-            durationMinutesInput.value = minutes;
-            durationSecondsInput.value = seconds;
-
-            // 计算完成后，也要同步更新隐藏的 duration 字段
-            updateDurationField();
-        }
-        // **其他情况**: 如果既没有输入时长，也没有输入有效的平均速度，则不进行计算。
-        // 可以根据需要选择是否在此处清空对方字段，例如：
-        // else {
-        //     avgSpeedInput.value = ''; // 清空速度
-        //     durationHoursInput.value = ''; // 清空小时
-        //     durationMinutesInput.value = ''; // 清空分钟
-        //     durationSecondsInput.value = ''; // 清空秒钟
-        //     updateDurationField(); // 更新隐藏字段为空
-        // }
     }
 
     // 表单提交处理
