@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hours = (durationHoursInput.value || '0').padStart(2, '0');
         const minutes = (durationMinutesInput.value || '0').padStart(2, '0');
         const seconds = (durationSecondsInput.value || '0').padStart(2, '0');
-
+    
         // 将格式化后的时分秒组合成 HH:MM:SS 格式，并更新到隐藏的 input#duration 中
         durationInput.value = `${hours}:${minutes}:${seconds}`;
     }
@@ -115,17 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function calculateDuration(distance, avgSpeed) {
         // 计算总秒数 = (距离 / 速度) * 3600，并四舍五入
         const totalSeconds = Math.round((distance / avgSpeed) * 3600);
-
+    
         // 将计算出的总秒数转换回时、分、秒
         const hours = Math.floor(totalSeconds / 3600); // 计算小时部分
         const minutes = Math.floor((totalSeconds % 3600) / 60); // 计算分钟部分
         const seconds = totalSeconds % 60; // 计算秒钟部分
-
+    
         // 更新页面上显示的时、分、秒输入框
         durationHoursInput.value = hours;
         durationMinutesInput.value = minutes;
         durationSecondsInput.value = seconds;
-
+    
         // 计算完成后，也要同步更新隐藏的 duration 字段
         updateDurationField();
     }
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 计算总秒数
         const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-
+    
         // 只有当总时长大于0秒时，计算才有意义
         if (totalSeconds > 0) {
             // 将总秒数转换为小时数，用于计算速度 (km/h)
@@ -149,6 +149,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const calculatedSpeed = Math.round(distance / timeInHours);
             // 更新平均速度输入框的值
             avgSpeedInput.value = calculatedSpeed;
+        }
+    }
+    
+    // 添加updateCalculations函数，用于在表单提交前更新计算
+    function updateCalculations() {
+        const distance = parseFloat(distanceInput.value);
+        const avgSpeed = parseFloat(avgSpeedInput.value);
+        const hasTimeInput = durationHoursInput.value || durationMinutesInput.value || durationSecondsInput.value;
+        
+        // 更新隐藏的duration字段
+        if (hasTimeInput) {
+            updateDurationField();
+        }
+        
+        // 如果有距离和速度，计算时长
+        if (distance > 0 && avgSpeed > 0) {
+            calculateDuration(distance, avgSpeed);
+        }
+        // 如果有距离和时长，计算速度
+        else if (distance > 0 && hasTimeInput) {
+            calculateSpeed(distance);
         }
     }
 
